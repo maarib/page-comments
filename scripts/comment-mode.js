@@ -159,14 +159,29 @@
     pinSheet.textContent = out.join('\n')
     document.head.append(pinSheet)
   }
+  /** The innermost element that was hovered when the mode came on. */
+  let pinnedLeaf = null
   function pinHover() {
     buildPinSheet()
-    for (const e of document.querySelectorAll(':hover')) e.classList.add(PIN)
+    const chain = [...document.querySelectorAll(':hover')].filter((n) => !isOurs(n))
+    for (const e of chain) e.classList.add(PIN)
+    pinnedLeaf = chain.length > 2 ? chain[chain.length - 1] : null
+  }
+  /**
+   * Whether a note on `e` is about the held hover state: `e` is the element that was hovered, is
+   * inside it, or is one of the few elements wrapped closely around it (a row around its label).
+   */
+  function inHeldHover(e) {
+    if (!pinnedLeaf || !pinnedLeaf.isConnected) return false
+    if (e === pinnedLeaf || pinnedLeaf.contains(e)) return true
+    for (let n = pinnedLeaf.parentElement, steps = 0; n && steps < 4; n = n.parentElement, steps++) if (n === e) return true
+    return false
   }
   function unpinHover() {
     for (const e of document.querySelectorAll(`.${PIN}`)) e.classList.remove(PIN)
     if (pinSheet) pinSheet.remove()
     pinSheet = null
+    pinnedLeaf = null
   }
 
   // ── Outline and pins ──
@@ -390,7 +405,7 @@
   function openBox(e, existing) {
     editing = true
     const r = e ? e.getBoundingClientRect() : existing.rect
-    const hovered = existing ? existing.hovered : e.matches(`.${PIN}, .${PIN} *`)
+    const hovered = existing ? existing.hovered : inHeldHover(e)
     const area = el('textarea', `${FONT} font-weight: 400; display: block; width: 100%; min-height: 76px; margin: 8px 0; padding: 8px 10px; border-radius: 10px; border: 1px solid ${LINE}; background: ${FIELD}; color: ${PAPER}; resize: vertical; outline: none; box-sizing: border-box;`)
     area.placeholder = 'What should change here?'
     if (existing) area.value = existing.comment
